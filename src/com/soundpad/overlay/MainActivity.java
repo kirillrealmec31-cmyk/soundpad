@@ -17,7 +17,7 @@ import android.widget.Toast;
 
 public class MainActivity extends Activity {
     static final int LINE = 0xFF2B3449, TXT = 0xFFE6EAF2, SUB = 0xFF8791A8, ACC = 0xFF93ABEB, ACCD = 0xFF3D4F85, SURF = 0xFF1B2232;
-    TextView s1, s2;
+    TextView s1, s2, s3;
 
     int dp(int v) { return (int) (v * getResources().getDisplayMetrics().density); }
 
@@ -71,6 +71,8 @@ public class MainActivity extends Activity {
         s1.setPadding(0, dp(30), 0, dp(4));
         r.addView(s1);
         r.addView(s2);
+        s3 = txt("root: проверяю…", 15, SUB);
+        r.addView(s3);
         final String pkg = getPackageName();
         r.addView(btn("Разрешить поверх окон", SURF, LINE, TXT, v ->
             startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + pkg)))));
@@ -100,12 +102,16 @@ public class MainActivity extends Activity {
     void grantRoot(final String pkg) {
         new Thread(() -> {
             String msg;
-            try {
-                Process p = Runtime.getRuntime().exec(new String[]{"su", "-c",
-                    "appops set " + pkg + " SYSTEM_ALERT_WINDOW allow; appops set " + pkg + " MANAGE_EXTERNAL_STORAGE allow"});
-                msg = p.waitFor() == 0 ? "Права выданы" : "Root отказал";
-            } catch (Exception e) {
-                msg = "Root недоступен";
+            String r = Su.check();
+            if (r.equals("OK")) {
+                try {
+                    Process p = Su.run("appops set " + pkg + " SYSTEM_ALERT_WINDOW allow; appops set " + pkg + " MANAGE_EXTERNAL_STORAGE allow");
+                    msg = p.waitFor() == 0 ? "Права выданы" : "Права не выданы";
+                } catch (Exception e) {
+                    msg = "Ошибка: " + e.getMessage();
+                }
+            } else {
+                msg = "root: " + r;
             }
             final String m = msg;
             runOnUiThread(() -> {
@@ -115,11 +121,22 @@ public class MainActivity extends Activity {
         }).start();
     }
 
+    void checkRoot() {
+        new Thread(() -> {
+            final String r = Su.check();
+            runOnUiThread(() -> {
+                s3.setText(r.equals("OK") ? "OK    root для приложения" : "нет   root: " + r);
+                s3.setTextColor(r.equals("OK") ? ACC : 0xFFC98A98);
+            });
+        }).start();
+    }
+
     void refresh() {
         s1.setText((overlayOk() ? "OK    " : "нет   ") + "поверх других окон");
         s2.setText((filesOk() ? "OK    " : "нет   ") + "доступ ко всем файлам");
         s1.setTextColor(overlayOk() ? ACC : 0xFFC98A98);
         s2.setTextColor(filesOk() ? ACC : 0xFFC98A98);
+        checkRoot();
     }
 
     protected void onResume() {

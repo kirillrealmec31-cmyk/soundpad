@@ -61,8 +61,7 @@ public class MicEngine {
         if (running) { post(cb, true, ""); return; }
         new Thread(() -> {
             try {
-                final Process p = new ProcessBuilder("su", "-c", PRE + String.format(ROUTE, "1") + PLAY)
-                    .redirectErrorStream(true).start();
+                final Process p = Su.run(PRE + String.format(ROUTE, "1") + PLAY);
                 final StringBuilder log = new StringBuilder();
                 Thread rd = new Thread(() -> {
                     try {
@@ -85,7 +84,7 @@ public class MicEngine {
                 if (!alive) {
                     String m;
                     synchronized (log) { m = log.toString().trim(); }
-                    post(cb, false, m.isEmpty() ? "Нет root или не найден aplay (Termux: alsa-utils)" : lastLine(m));
+                    post(cb, false, m.isEmpty() ? "su закрылся без ответа: нет root или не найден aplay" : lastLine(m));
                     return;
                 }
                 proc = p;
@@ -96,7 +95,7 @@ public class MicEngine {
                 w.start();
                 post(cb, true, "");
             } catch (Exception e) {
-                post(cb, false, "Нет root: разреши доступ в KernelSU");
+                post(cb, false, "root: " + e.getMessage());
             }
         }).start();
     }
@@ -174,7 +173,7 @@ public class MicEngine {
         proc = null;
         out = null;
         new Thread(() -> {
-            try { new ProcessBuilder("su", "-c", PRE + String.format(ROUTE, "0")).start().waitFor(); } catch (Exception e) { }
+            try { Su.run(PRE + String.format(ROUTE, "0")).waitFor(); } catch (Exception e) { }
         }).start();
     }
 

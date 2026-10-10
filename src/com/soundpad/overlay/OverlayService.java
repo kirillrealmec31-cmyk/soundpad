@@ -327,7 +327,7 @@ public class OverlayService extends Service {
                 mic.preload(fl);
             } else {
                 tog.set(false);
-                sub.setText("Выход: динамик");
+                sub.setText("Ошибка: " + (msg.length() > 34 ? msg.substring(0, 34) + "…" : msg));
                 Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
             }
         });
