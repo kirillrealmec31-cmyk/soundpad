@@ -2,7 +2,6 @@ package com.soundpad.overlay;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -17,6 +16,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
+    static final int LINE = 0xFF2B3449, TXT = 0xFFE6EAF2, SUB = 0xFF8791A8, ACC = 0xFF93ABEB, ACCD = 0xFF3D4F85, SURF = 0xFF1B2232;
     TextView s1, s2;
 
     int dp(int v) { return (int) (v * getResources().getDisplayMetrics().density); }
@@ -26,18 +26,22 @@ public class MainActivity extends Activity {
         t.setText(s);
         t.setTextSize(sp);
         t.setTextColor(c);
+        t.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         return t;
     }
 
-    Button btn(String t, int c1, int c2, View.OnClickListener l) {
+    Button btn(String t, int fill, int stroke, int tc, View.OnClickListener l) {
         Button b = new Button(this);
         b.setText(t);
         b.setAllCaps(false);
-        b.setTextColor(Color.WHITE);
+        b.setTextColor(tc);
         b.setTextSize(15);
-        b.setTypeface(Typeface.DEFAULT_BOLD);
-        GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, new int[]{c1, c2});
-        g.setCornerRadius(dp(16));
+        b.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        b.setStateListAnimator(null);
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(fill);
+        g.setStroke(dp(1), stroke);
+        g.setCornerRadius(dp(18));
         b.setBackground(g);
         b.setOnClickListener(l);
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, dp(54));
@@ -56,30 +60,29 @@ public class MainActivity extends Activity {
         super.onCreate(b);
         LinearLayout r = new LinearLayout(this);
         r.setOrientation(LinearLayout.VERTICAL);
-        r.setPadding(dp(24), dp(56), dp(24), dp(24));
-        r.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{0xFF02030A, 0xFF0A1E5C}));
-        TextView t = txt("SOUNDPAD", 34, 0xFFFFFFFF);
-        t.setTypeface(Typeface.DEFAULT_BOLD);
-        t.setLetterSpacing(0.12f);
+        r.setPadding(dp(24), dp(64), dp(24), dp(24));
+        r.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{0xFF0C0F16, 0xFF161C2B}));
+        TextView t = txt("Soundpad", 32, TXT);
+        t.setLetterSpacing(0.04f);
         r.addView(t);
-        r.addView(txt("оверлей-пэд для звуков", 14, 0xFF26D9FF));
-        s1 = txt("", 15, 0xFFD2DEFB);
-        s2 = txt("", 15, 0xFFD2DEFB);
-        s1.setPadding(0, dp(28), 0, dp(4));
+        r.addView(txt("оверлей-пэд для звуков", 14, SUB));
+        s1 = txt("", 15, TXT);
+        s2 = txt("", 15, TXT);
+        s1.setPadding(0, dp(30), 0, dp(4));
         r.addView(s1);
         r.addView(s2);
         final String pkg = getPackageName();
-        r.addView(btn("1. Разрешить поверх окон", 0xFF2F7BFF, 0xFF26D9FF, v ->
+        r.addView(btn("Разрешить поверх окон", SURF, LINE, TXT, v ->
             startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + pkg)))));
-        r.addView(btn("2. Доступ ко всем файлам", 0xFF5B2BFF, 0xFF2F7BFF, v -> {
+        r.addView(btn("Доступ ко всем файлам", SURF, LINE, TXT, v -> {
             try {
                 startActivity(new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:" + pkg)));
             } catch (Exception e) {
                 startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
             }
         }));
-        r.addView(btn("Выдать оба права через root", 0xFF0B1F5C, 0xFF2F7BFF, v -> grantRoot(pkg)));
-        r.addView(btn("Запустить оверлей", 0xFF00B8FF, 0xFF26FFD0, v -> {
+        r.addView(btn("Выдать оба права через root", SURF, ACCD, ACC, v -> grantRoot(pkg)));
+        r.addView(btn("Запустить оверлей", 0xFF3D4F85, ACC, TXT, v -> {
             if (!overlayOk() || !filesOk()) {
                 toast("Сначала выдай оба права");
                 return;
@@ -87,9 +90,9 @@ public class MainActivity extends Activity {
             startService(new Intent(this, OverlayService.class));
             moveTaskToBack(true);
         }));
-        r.addView(btn("Остановить", 0xFF3A1030, 0xFFFF4D7E, v -> stopService(new Intent(this, OverlayService.class))));
-        TextView h = txt("Звуки кладём в /sdcard/Soundpad (mp3, ogg, wav, m4a, flac)", 12, 0xFF7F93C4);
-        h.setPadding(0, dp(18), 0, 0);
+        r.addView(btn("Остановить", SURF, LINE, 0xFFC98A98, v -> stopService(new Intent(this, OverlayService.class))));
+        TextView h = txt("Звуки выбираются прямо в оверлее: плюс, затем нужные файлы. Переключатель в панели: динамик или микрофон. Для микрофона нужны root и Termux с alsa-utils.", 12, SUB);
+        h.setPadding(0, dp(20), 0, 0);
         r.addView(h);
         setContentView(r);
     }
@@ -115,8 +118,8 @@ public class MainActivity extends Activity {
     void refresh() {
         s1.setText((overlayOk() ? "OK    " : "нет   ") + "поверх других окон");
         s2.setText((filesOk() ? "OK    " : "нет   ") + "доступ ко всем файлам");
-        s1.setTextColor(overlayOk() ? 0xFF26FFD0 : 0xFFFF4D7E);
-        s2.setTextColor(filesOk() ? 0xFF26FFD0 : 0xFFFF4D7E);
+        s1.setTextColor(overlayOk() ? ACC : 0xFFC98A98);
+        s2.setTextColor(filesOk() ? ACC : 0xFFC98A98);
     }
 
     protected void onResume() {
