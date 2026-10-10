@@ -321,7 +321,7 @@ public class OverlayService extends Service {
             micBusy = false;
             if (ok) {
                 micMode = true;
-                sub.setText("Выход: микрофон");
+                sub.setText(msg.equals("Termux") ? "Выход: микрофон · Termux" : "Выход: микрофон");
                 List<File> fl = new ArrayList<>();
                 for (Pad p : pads) fl.add(p.f);
                 mic.preload(fl);

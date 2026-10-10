@@ -93,7 +93,7 @@ public class MainActivity extends Activity {
             moveTaskToBack(true);
         }));
         r.addView(btn("Остановить", SURF, LINE, 0xFFC98A98, v -> stopService(new Intent(this, OverlayService.class))));
-        TextView h = txt("Звуки выбираются прямо в оверлее: плюс, затем нужные файлы. Переключатель в панели: динамик или микрофон. Для микрофона нужны root и Termux с alsa-utils.", 12, SUB);
+        TextView h = txt("Звуки выбираются прямо в оверлее: плюс, затем нужные файлы. Переключатель в панели: динамик или микрофон. Микрофону нужен root у приложения или запущенный мост в Termux (soundpad-root.sh).", 12, SUB);
         h.setPadding(0, dp(20), 0, 0);
         r.addView(h);
         setContentView(r);

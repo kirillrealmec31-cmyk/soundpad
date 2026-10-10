@@ -56,48 +56,75 @@ public class MicEngine {
         return l[l.length - 1];
     }
 
+    java.net.Socket sock;
+
     void start(Context c, Cb cb) {
         ctx = c.getApplicationContext();
         if (running) { post(cb, true, ""); return; }
         new Thread(() -> {
-            try {
-                final Process p = Su.run(PRE + String.format(ROUTE, "1") + PLAY);
-                final StringBuilder log = new StringBuilder();
-                Thread rd = new Thread(() -> {
-                    try {
-                        InputStream in = p.getInputStream();
-                        byte[] b = new byte[512];
-                        int n;
-                        while ((n = in.read(b)) > 0) {
-                            synchronized (log) {
-                                log.append(new String(b, 0, n));
-                                if (log.length() > 400) log.delete(0, log.length() - 400);
-                            }
-                        }
-                    } catch (Exception e) { }
-                });
-                rd.setDaemon(true);
-                rd.start();
-                Thread.sleep(900);
-                boolean alive;
-                try { p.exitValue(); alive = false; } catch (IllegalThreadStateException e) { alive = true; }
-                if (!alive) {
-                    String m;
-                    synchronized (log) { m = log.toString().trim(); }
-                    post(cb, false, m.isEmpty() ? "su закрылся без ответа: нет root или не найден aplay" : lastLine(m));
-                    return;
-                }
-                proc = p;
-                out = p.getOutputStream();
-                running = true;
-                Thread w = new Thread(this::loop);
-                w.setDaemon(true);
-                w.start();
-                post(cb, true, "");
-            } catch (Exception e) {
-                post(cb, false, "root: " + e.getMessage());
-            }
+            String e1 = tryRoot();
+            if (e1 == null) { post(cb, true, "root"); return; }
+            String e2 = tryBridge();
+            if (e2 == null) { post(cb, true, "Termux"); return; }
+            post(cb, false, "Нет root и нет моста Termux. Детали: " + e1 + " / мост: " + e2);
         }).start();
+    }
+
+    String tryRoot() {
+        try {
+            final Process p = Su.run(PRE + String.format(ROUTE, "1") + PLAY);
+            final StringBuilder log = new StringBuilder();
+            Thread rd = new Thread(() -> {
+                try {
+                    InputStream in = p.getInputStream();
+                    byte[] b = new byte[512];
+                    int n;
+                    while ((n = in.read(b)) > 0) {
+                        synchronized (log) {
+                            log.append(new String(b, 0, n));
+                            if (log.length() > 400) log.delete(0, log.length() - 400);
+                        }
+                    }
+                } catch (Exception e) { }
+            });
+            rd.setDaemon(true);
+            rd.start();
+            Thread.sleep(900);
+            boolean alive;
+            try { p.exitValue(); alive = false; } catch (IllegalThreadStateException e) { alive = true; }
+            if (!alive) {
+                String m;
+                synchronized (log) { m = log.toString().trim(); }
+                return m.isEmpty() ? "su закрылся без ответа" : lastLine(m);
+            }
+            proc = p;
+            out = p.getOutputStream();
+            startLoop();
+            return null;
+        } catch (Exception e) {
+            return String.valueOf(e.getMessage());
+        }
+    }
+
+    String tryBridge() {
+        try {
+            java.net.Socket s = new java.net.Socket();
+            s.connect(new java.net.InetSocketAddress("127.0.0.1", 7788), 800);
+            s.setTcpNoDelay(true);
+            sock = s;
+            out = s.getOutputStream();
+            startLoop();
+            return null;
+        } catch (Exception e) {
+            return e.getClass().getSimpleName();
+        }
+    }
+
+    void startLoop() {
+        running = true;
+        Thread w = new Thread(this::loop);
+        w.setDaemon(true);
+        w.start();
     }
 
     void loop() {
@@ -169,12 +196,17 @@ public class MicEngine {
         running = false;
         voices.clear();
         try { if (out != null) out.close(); } catch (Exception e) { }
+        try { if (sock != null) sock.close(); } catch (Exception e) { }
+        boolean viaRoot = proc != null;
         if (proc != null) proc.destroy();
         proc = null;
         out = null;
-        new Thread(() -> {
-            try { Su.run(PRE + String.format(ROUTE, "0")).waitFor(); } catch (Exception e) { }
-        }).start();
+        sock = null;
+        if (viaRoot) {
+            new Thread(() -> {
+                try { Su.run(PRE + String.format(ROUTE, "0")).waitFor(); } catch (Exception e) { }
+            }).start();
+        }
     }
 
     short[] decode(File f) throws Exception {
